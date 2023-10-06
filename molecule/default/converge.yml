@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    openjdk_release_version: "jdk-17.0.8.1+1"
+    openjdk_install_dir: "/opt/java"
+  roles:
+    - role: ansible-role-openjdk

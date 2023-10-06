@@ -1,0 +1,32 @@
+---
+- name: Verify All Java Versions
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+  - name: Find All Java Binaries
+    shell: find /opt/java -name "java" -type f
+    register: java_binary_paths
+    changed_when: false
+    failed_when: false
+
+  - name: Verify Java Versions
+    block:
+      - name: Verify Java Version
+        command: "{{ item }} --version"
+        register: verify_java_version_result
+        ignore_errors: yes
+        loop: "{{ java_binary_paths.stdout_lines }}"
+        loop_control:
+          loop_var: item
+
+      - name: Store Java Version Result
+        set_fact:
+          java_versions:
+            - "{{ verify_java_version_result }}"
+        when: verify_java_version_result is succeeded
+
+  - name: Print Java Versions
+    ansible.builtin.debug:
+      var: java_versions
+    when: java_versions | length > 0

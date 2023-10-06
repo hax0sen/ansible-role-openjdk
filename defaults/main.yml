@@ -1,0 +1,7 @@
+---
+#openJDK download url
+openjdk_url:  https://api.adoptium.net/v3/assets/release_name/eclipse/{{ openjdk_release_version }}?architecture=x64&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=linux&project=jdk
+#Adoptium openJDK release e.g jdk-17.0.1+12 https://adoptopenjdk.net/releases.html
+openjdk_release_version: "jdk-17.0.8.1+1"
+#Path where to install java
+openjdk_install_dir: "/opt/java"

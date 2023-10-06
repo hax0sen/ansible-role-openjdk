@@ -1,0 +1,72 @@
+---
+- name: Fail if openjdk_release_version is not specified
+  ansible.builtin.fail:
+    msg: "no openjdk relase specified"
+  when: openjdk_release_version | length == 0
+
+- name: Retrieve Adoptium OpenJDK release info (JSON format)
+  become: true
+  ansible.builtin.uri:
+    url: "{{ openjdk_url }}"
+    timeout: 300
+  register: _openjdk_release_version_info
+  until: _openjdk_release_version_info is succeeded
+  retries: 3
+  delay: 20
+
+- name: Set essential role facts
+  ansible.builtin.set_fact:
+    _openjdk_major_version: "{{ _openjdk_release_version_info.json.version_data.major }}"
+    _openjdk_release_version_dir: "{{ openjdk_release_version | replace('+', '-') }}"
+
+- name: Ensure the release installation directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ openjdk_install_dir }}/{{ _openjdk_major_version }}/{{ _openjdk_release_version_dir }}"
+    state: directory
+    mode: 0644
+  register: _openjdk_release_version_dir_path
+
+- name: Install or upgrade "{{ openjdk_release_version }}"
+  when: _openjdk_release_version_dir_path.changed
+  block:
+    - name: Download OpenJDK {{ openjdk_release_version }}
+      become: true
+      ansible.builtin.get_url:
+        url: "{{ _openjdk_release_version_info.json.binaries[0].package.link }}"
+        dest: /tmp/
+        mode: 0664
+        checksum: "sha256:{{ _openjdk_release_version_info.json.binaries[0].package.checksum }}"
+        timeout: 300
+    
+    - name: Unpack to the temporary folder
+      become: true
+      ansible.builtin.unarchive:
+        src: /tmp/{{ _openjdk_release_version_info.json.binaries[0].package.name }}
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Install into the directory
+      become: true
+      ansible.builtin.copy:
+        src: "/tmp/{{ openjdk_release_version }}"
+        dest: "{{ openjdk_install_dir }}/{{ _openjdk_major_version }}/{{ _openjdk_release_version_dir }}/"
+        mode: 0644
+        remote_src: yes
+        directory_mode: yes 
+
+    - name: Remove temporary download
+      become: true
+      ansible.builtin.file:
+        path: /tmp/{{ _openjdk_release_version_info.json.binaries[0].package.name }}
+        state: absent
+        
+    - name: Remove temporary release directory
+      become: true
+      ansible.builtin.file:
+        path: /tmp/{{ openjdk_release_version }}
+        state: absent
+
+- name: How to use Java in CLI
+  ansible.builtin.debug:
+    msg: "export to path {{ openjdk_install_dir }}/{{ _openjdk_major_version }}/{{ _openjdk_release_version_dir }}/{{ openjdk_release_version }}/bin/java or use full path e.g {{ openjdk_install_dir }}/{{ _openjdk_major_version }}/{{ _openjdk_release_version_dir }}/{{ openjdk_release_version }}/bin/java --version"

@@ -1,0 +1,46 @@
+---
+# This is a basic workflow to help you get started with Actions
+name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Ansible and Ansible Lint
+        run: |
+          pip install ansible ansible-lint
+      - name: Check Ansible Role Syntax
+        run: |
+          ansible-lint --exclude molecule
+        working-directory: ${{ github.workspace }}
+  molecule:
+    name: Molecule
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        distro: 
+          - geerlingguy/docker-centos8-ansible:latest
+    steps:
+      - name: Check out the codebase.
+        uses: actions/checkout@v4
+      - name: Set up Python 3.
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install test dependencies.
+        run: pip3 install ansible molecule molecule-plugins[docker] docker
+      - name: Run Molecule tests.
+        run: molecule test
+        env:
+          PY_COLORS: '1'
+          ANSIBLE_FORCE_COLOR: '1'
+          MOLECULE_DISTRO: ${{ matrix.distro }}
